@@ -59,6 +59,16 @@ public class TouchImageView extends ImageView {
         sharedConstructing(context);
     }
     
+    private void stopInterceptEvent()
+    {
+    	getParent().requestDisallowInterceptTouchEvent(true);
+	}
+	
+	private void startInterceptEvent()
+	{
+		getParent().requestDisallowInterceptTouchEvent(false);
+	}
+    
     private void sharedConstructing(Context context) {
         super.setClickable(true);
         this.context = context;
@@ -80,6 +90,7 @@ public class TouchImageView extends ImageView {
                     	last.set(curr);
                         start.set(last);
                         mode = DRAG;
+                        stopInterceptEvent();
                         break;
                         
                     case MotionEvent.ACTION_MOVE:
@@ -91,6 +102,13 @@ public class TouchImageView extends ImageView {
                             matrix.postTranslate(fixTransX, fixTransY);
                             fixTrans();
                             last.set(curr.x, curr.y);
+                            
+                            float transX = m[Matrix.MTRANS_X];
+                            
+                            if((int) (getFixTrans(transX, viewWidth, origWidth * saveScale) + fixTransX) == 0)
+                                startInterceptEvent();
+            			    else
+            				    stopInterceptEvent();
                         }
                         break;
 
@@ -100,6 +118,7 @@ public class TouchImageView extends ImageView {
                         int yDiff = (int) Math.abs(curr.y - start.y);
                         if (xDiff < CLICK && yDiff < CLICK)
                             performClick();
+                        startInterceptEvent();
                         break;
 
                     case MotionEvent.ACTION_POINTER_UP:
