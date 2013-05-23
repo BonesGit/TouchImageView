@@ -3,6 +3,7 @@
  * By: Michael Ortiz
  * Updated By: Patrick Lackemacher
  * Updated By: Babay88
+ * Updated By: Vivek Khandelwal
  * -------------------
  * Extends Android ImageView to include pinch zooming and panning.
  */
