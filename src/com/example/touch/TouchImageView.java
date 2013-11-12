@@ -11,6 +11,8 @@
  * BonesGit:
  * Changed default max scale to 4.
  * Added TAG string for logging.
+ * Added double tap zoom increment to zoom in and back out.
+ * Refactored single click pass-through to super ImageView.
  */
 
 package com.example.touch;
@@ -21,6 +23,7 @@ import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -48,13 +51,15 @@ public class TouchImageView extends ImageView {
 
 
     int viewWidth, viewHeight;
-    static final int CLICK = 3;
     float saveScale = 1f;
     protected float origWidth, origHeight;
     int oldMeasuredWidth, oldMeasuredHeight;
 
 
     ScaleGestureDetector mScaleDetector;
+    GestureDetector mDoubleDectector;
+
+    float zoomTapIncrement = 1f;
 
     Context context;
 
@@ -81,6 +86,7 @@ public class TouchImageView extends ImageView {
     private void sharedConstructing(Context context) {
         super.setClickable(true);
         this.context = context;
+        mDoubleDectector = new GestureDetector(context, new DoubleTapListener());
         mScaleDetector = new ScaleGestureDetector(context, new ScaleListener());
         matrix = new Matrix();
         m = new float[9];
@@ -91,50 +97,50 @@ public class TouchImageView extends ImageView {
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                mScaleDetector.onTouchEvent(event);
-                PointF curr = new PointF(event.getX(), event.getY());
-
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                    	last.set(curr);
-                        start.set(last);
-                        mode = DRAG;
-                        stopInterceptEvent();
-                        break;
-                        
-                    case MotionEvent.ACTION_MOVE:
-                        if (mode == DRAG) {
-                            float deltaX = curr.x - last.x;
-                            float deltaY = curr.y - last.y;
-                            float fixTransX = getFixDragTrans(deltaX, viewWidth, origWidth * saveScale);
-                            float fixTransY = getFixDragTrans(deltaY, viewHeight, origHeight * saveScale);
-                            matrix.postTranslate(fixTransX, fixTransY);
-                            fixTrans();
-                            last.set(curr.x, curr.y);
-                            
-                            float transX = m[Matrix.MTRANS_X];
-                            
-                            if((int) (getFixTrans(transX, viewWidth, origWidth * saveScale) + fixTransX) == 0)
-                                startInterceptEvent();
-            			    else
-            				    stopInterceptEvent();
-                        }
-                        break;
-
-                    case MotionEvent.ACTION_UP:
-                        mode = NONE;
-                        int xDiff = (int) Math.abs(curr.x - start.x);
-                        int yDiff = (int) Math.abs(curr.y - start.y);
-                        if (xDiff < CLICK && yDiff < CLICK)
-                            performClick();
-                        startInterceptEvent();
-                        break;
-
-                    case MotionEvent.ACTION_POINTER_UP:
-                        mode = NONE;
-                        break;
-                }
-                
+            	boolean doubleTapResult = mDoubleDectector.onTouchEvent(event);
+            	if ( !doubleTapResult ) {
+	            	// monitor scale
+	                mScaleDetector.onTouchEvent(event);
+	                PointF curr = new PointF(event.getX(), event.getY());
+	
+	                switch (event.getAction()) {
+	                    case MotionEvent.ACTION_DOWN:
+	                    	last.set(curr);
+	                        start.set(last);
+	                        mode = DRAG;
+	                        stopInterceptEvent();
+	                        break;
+	                        
+	                    case MotionEvent.ACTION_MOVE:
+	                        if (mode == DRAG) {
+	                            float deltaX = curr.x - last.x;
+	                            float deltaY = curr.y - last.y;
+	                            float fixTransX = getFixDragTrans(deltaX, viewWidth, origWidth * saveScale);
+	                            float fixTransY = getFixDragTrans(deltaY, viewHeight, origHeight * saveScale);
+	                            matrix.postTranslate(fixTransX, fixTransY);
+	                            fixTrans();
+	                            last.set(curr.x, curr.y);
+	                            
+	                            float transX = m[Matrix.MTRANS_X];
+	                            
+	                            if((int) (getFixTrans(transX, viewWidth, origWidth * saveScale) + fixTransX) == 0)
+	                                startInterceptEvent();
+	            			    else
+	            				    stopInterceptEvent();
+	                        }
+	                        break;
+	
+	                    case MotionEvent.ACTION_UP:
+	                        mode = NONE;
+	                        startInterceptEvent();
+	                        break;
+	
+	                    case MotionEvent.ACTION_POINTER_UP:
+	                        mode = NONE;
+	                        break;
+	                }
+            	}
+            	
                 setImageMatrix(matrix);
                 invalidate();
                 return true; // indicate event was handled
@@ -145,6 +151,10 @@ public class TouchImageView extends ImageView {
 
     public void setMaxZoom(float x) {
         maxScale = x;
+    }
+    
+    public void setZoomTapIncrement(float increment) {
+   		zoomTapIncrement = increment;
     }
 
     private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
@@ -176,6 +186,41 @@ public class TouchImageView extends ImageView {
             return true;
         }
     }
+    
+
+    private class DoubleTapListener extends GestureDetector.SimpleOnGestureListener {
+
+		@Override
+		public boolean onSingleTapConfirmed(MotionEvent e) {
+			//Log.v(TAG, "onSingleTapConfirmed");
+			return performClick();
+		}
+		
+		@Override
+		public boolean onDoubleTap(MotionEvent e) {
+			//Log.v(TAG, "onDoupleTap " + e.getAction());
+			
+			// zoom in or out
+            float origScale = saveScale;
+            saveScale += zoomTapIncrement;
+            if (saveScale > maxScale) {
+                saveScale = 1f; // zoom back out to normal scale if can't go in any further
+            }
+            
+            final float finalScaleFactor = saveScale / origScale;
+
+            if (origWidth * saveScale <= viewWidth || origHeight * saveScale <= viewHeight) {
+            	matrix.postScale(finalScaleFactor, finalScaleFactor, viewWidth / 2, viewHeight / 2);
+            } else {
+            	matrix.postScale(finalScaleFactor, finalScaleFactor, e.getX(), e.getY());
+            }
+            
+            fixTrans();
+			return true;
+		}
+
+    }
+        
 
     void fixTrans() {
         matrix.getValues(m);
