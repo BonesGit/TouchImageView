@@ -4,8 +4,13 @@
  * Updated By: Patrick Lackemacher
  * Updated By: Babay88
  * Updated By: Vivek Khandelwal
+ * Updated By: BonesGit
  * -------------------
  * Extends Android ImageView to include pinch zooming and panning.
+ * 
+ * BonesGit:
+ * Changed default max scale to 4.
+ * Added TAG string for logging.
  */
 
 package com.example.touch;
@@ -23,6 +28,9 @@ import android.widget.ImageView;
 
 public class TouchImageView extends ImageView {
 
+	
+	private static final String TAG = TouchImageView.class.getName();
+
     Matrix matrix;
 
     // We can be in one of these 3 states
@@ -35,7 +43,7 @@ public class TouchImageView extends ImageView {
     PointF last = new PointF();
     PointF start = new PointF();
     float minScale = 1f;
-    float maxScale = 3f;
+    float maxScale = 4f;
     float[] m;
 
 
@@ -67,7 +75,7 @@ public class TouchImageView extends ImageView {
 	
     private void startInterceptEvent()
     {
-	getParent().requestDisallowInterceptTouchEvent(false);
+    	getParent().requestDisallowInterceptTouchEvent(false);
     }
     
     private void sharedConstructing(Context context) {
@@ -231,7 +239,7 @@ public class TouchImageView extends ImageView {
             int bmWidth = drawable.getIntrinsicWidth();
             int bmHeight = drawable.getIntrinsicHeight();
             
-            Log.d("bmSize", "bmWidth: " + bmWidth + " bmHeight : " + bmHeight);
+            //Log.d(TAG, "bmWidth: " + bmWidth + " bmHeight : " + bmHeight);
 
             float scaleX = (float) viewWidth / (float) bmWidth;
             float scaleY = (float) viewHeight / (float) bmHeight;
