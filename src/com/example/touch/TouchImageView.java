@@ -209,13 +209,19 @@ public class TouchImageView extends ImageView {
             
             final float finalScaleFactor = saveScale / origScale;
 
-            if (origWidth * saveScale <= viewWidth || origHeight * saveScale <= viewHeight) {
-            	matrix.postScale(finalScaleFactor, finalScaleFactor, viewWidth / 2, viewHeight / 2);
-            } else {
-            	matrix.postScale(finalScaleFactor, finalScaleFactor, e.getX(), e.getY());
-            }
+            // scale on mouse position
+        	float scaleCenterX = e.getX();
+        	float scaleCenterY = e.getY();
+            // scale
+        	matrix.postScale(finalScaleFactor, finalScaleFactor, scaleCenterX, scaleCenterY);
+
+        	// translation difference
+        	float transX = viewWidth / 2 - scaleCenterX;
+        	float transY = viewHeight / 2 - scaleCenterY;
+        	matrix.postTranslate(transX, transY);
             
-            fixTrans();
+        	// fix position, make sure its in bounds
+        	fixTrans();
 			return true;
 		}
 
